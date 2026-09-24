@@ -217,10 +217,10 @@ function compute(){
 
 /* ============================================================
    COLETA AUTOMÁTICA
-   Fontes: Twelve Data (ADRs) e Cloudflare Worker (VIX) — cotação AO
-   VIVO, só serve para "hoje".
-   FEF2!/CL1! (futuros) e datas passadas não têm fonte grátis
-   automática aqui, então ficam sempre para preenchimento manual.
+   Fontes: Twelve Data (ADRs) e Cloudflare Worker (VIX, FEF2!, CL1!) —
+   cotação AO VIVO, só serve para "hoje".
+   Datas passadas não têm fonte grátis automática aqui, então
+   ficam sempre para preenchimento manual.
    ============================================================ */
 const API_KEY_STORAGE = 'equacaoAbertura.twelveDataKey';
 
@@ -229,17 +229,21 @@ const API_KEY_STORAGE = 'equacaoAbertura.twelveDataKey';
 // tem prioridade sobre esta.
 const DEFAULT_API_KEY = '54c2ccad079b48b2b3d24a501e84edaa';
 
-// O VIX não existe na Twelve Data; vem do Cloudflare Worker em
-// worker/vix-worker.js (busca na Yahoo e libera CORS). Cole aqui a
-// URL do seu worker, ex.: 'https://vix.SEU-USUARIO.workers.dev'
+// VIX, FEF2! e CL1! não existem na Twelve Data; vêm do Cloudflare
+// Worker em worker/vix-worker.js (TradingView/Yahoo, com CORS liberado).
 const VIX_WORKER_URL = 'https://vix.jvstefanon.workers.dev';
 
-// Retorna a variação % do VIX no dia, ou null se falhar.
-async function fetchVixFromWorker(){
+// Retorna { vix, fef2, cl1 } com a variação % do dia; o que falhar vira null.
+async function fetchExternalFromWorker(){
+  const result = { vix:null, fef2:null, cl1:null };
   const res = await fetch(VIX_WORKER_URL);
-  if (!res.ok) return null;
-  const pc = parseFloat((await res.json()).percent_change);
-  return isNaN(pc) ? null : pc;
+  if (!res.ok) return result;
+  const data = await res.json();
+  Object.keys(result).forEach(k => {
+    const pc = parseFloat(data[k] && data[k].percent_change);
+    result[k] = isNaN(pc) ? null : pc;
+  });
+  return result;
 }
 
 function getApiKey(){
@@ -343,18 +347,19 @@ async function fetchAuto(){
       }
 
     } else {
-      if (!VIX_WORKER_URL){
-        setFetchStatus('Configure VIX_WORKER_URL no app.js para buscar o VIX. Preencha VIX, FEF2! e CL1! manualmente.', 'warn');
-        return;
-      }
-      setFetchStatus('Buscando VIX ao vivo…', '');
-      const vix = await fetchVixFromWorker();
-      if (vix != null){
-        $('in-vix').value = vix.toFixed(2);
-        compute();
-        setFetchStatus('VIX ao vivo aplicado. FEF2! e CL1! precisam ser preenchidos manualmente.', 'ok');
+      setFetchStatus('Buscando VIX, FEF2! e CL1! ao vivo…', '');
+      const values = await fetchExternalFromWorker();
+      applyValues(values);
+      compute();
+
+      const names = { vix:'VIX', fef2:'FEF2!', cl1:'CL1!' };
+      const missing = Object.keys(values).filter(k => values[k] == null).map(k => names[k]);
+      if (missing.length === 3){
+        setFetchStatus('Não consegui obter VIX, FEF2! e CL1! agora. Preencha manualmente.', 'warn');
+      } else if (missing.length){
+        setFetchStatus(`Cotações aplicadas, exceto ${missing.join(', ')}. Preencha esses manualmente.`, 'warn');
       } else {
-        setFetchStatus('Não consegui obter o VIX agora. Preencha VIX, FEF2! e CL1! manualmente.', 'warn');
+        setFetchStatus('VIX, FEF2! e CL1! ao vivo aplicados. Confira antes de salvar.', 'ok');
       }
     }
   }catch(e){
