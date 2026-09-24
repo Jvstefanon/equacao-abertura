@@ -3,7 +3,12 @@
    ============================================================ */
 const $ = (id) => document.getElementById(id);
 
-function todayISO(){ return new Date().toISOString().slice(0,10); }
+// Data de hoje no fuso local (toISOString usaria UTC e viraria o dia às 21h em Brasília).
+function todayISO(){
+  const d = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
 
 function fmtBR(dateISO){
   const [y,m,d] = dateISO.split('-');
@@ -218,8 +223,15 @@ function compute(){
    ============================================================ */
 const API_KEY_STORAGE = 'equacaoAbertura.twelveDataKey';
 
+// Chave fixa: cole a sua aqui entre as aspas para não precisar
+// digitá-la no navegador. Uma chave salva pelo campo da página
+// tem prioridade sobre esta.
+const DEFAULT_API_KEY = '54c2ccad079b48b2b3d24a501e84edaa';
+
 function getApiKey(){
-  return (localStorage.getItem(API_KEY_STORAGE) || '').trim();
+  let saved = '';
+  try { saved = localStorage.getItem(API_KEY_STORAGE) || ''; } catch(e) {}
+  return (saved.trim() || DEFAULT_API_KEY).trim();
 }
 
 function saveApiKey(){
@@ -334,10 +346,23 @@ async function fetchAuto(){
   }
 }
 
+// Atualização automática: busca ao abrir e depois a cada 5 minutos.
+// Só roda quando a data escolhida é hoje e há chave; senão fica quieto.
+const AUTO_REFRESH_MS = 5 * 60 * 1000;
+
+function autoFetch(){
+  if (!getApiKey()) return;
+  if ($('dateInput').value !== todayISO()) return;
+  if ($('fetchBtn').disabled) return; // já tem uma busca em andamento
+  fetchAuto();
+}
+
 function initFetchListener(){
   $('fetchBtn').addEventListener('click', fetchAuto);
   $('saveApiKeyBtn').addEventListener('click', saveApiKey);
   loadApiKeyIntoInput();
+  autoFetch();
+  setInterval(autoFetch, AUTO_REFRESH_MS);
 }
 
 
