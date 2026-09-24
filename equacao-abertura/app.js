@@ -217,7 +217,8 @@ function compute(){
 
 /* ============================================================
    COLETA AUTOMÁTICA
-   Fonte única: Twelve Data — cotação AO VIVO (só serve para "hoje").
+   Fontes: Twelve Data (ADRs) e Cloudflare Worker (VIX) — cotação AO
+   VIVO, só serve para "hoje".
    FEF2!/CL1! (futuros) e datas passadas não têm fonte grátis
    automática aqui, então ficam sempre para preenchimento manual.
    ============================================================ */
@@ -227,6 +228,19 @@ const API_KEY_STORAGE = 'equacaoAbertura.twelveDataKey';
 // digitá-la no navegador. Uma chave salva pelo campo da página
 // tem prioridade sobre esta.
 const DEFAULT_API_KEY = '54c2ccad079b48b2b3d24a501e84edaa';
+
+// O VIX não existe na Twelve Data; vem do Cloudflare Worker em
+// worker/vix-worker.js (busca na Yahoo e libera CORS). Cole aqui a
+// URL do seu worker, ex.: 'https://vix.SEU-USUARIO.workers.dev'
+const VIX_WORKER_URL = 'https://vix.jvstefanon.workers.dev';
+
+// Retorna a variação % do VIX no dia, ou null se falhar.
+async function fetchVixFromWorker(){
+  const res = await fetch(VIX_WORKER_URL);
+  if (!res.ok) return null;
+  const pc = parseFloat((await res.json()).percent_change);
+  return isNaN(pc) ? null : pc;
+}
 
 function getApiKey(){
   let saved = '';
@@ -329,14 +343,18 @@ async function fetchAuto(){
       }
 
     } else {
-      setFetchStatus('Buscando VIX ao vivo (Twelve Data)…', '');
-      const tdResult = await fetchTwelveDataQuotes(['VIX']);
-      if (tdResult.VIX != null){
-        $('in-vix').value = tdResult.VIX.toFixed(2);
+      if (!VIX_WORKER_URL){
+        setFetchStatus('Configure VIX_WORKER_URL no app.js para buscar o VIX. Preencha VIX, FEF2! e CL1! manualmente.', 'warn');
+        return;
+      }
+      setFetchStatus('Buscando VIX ao vivo…', '');
+      const vix = await fetchVixFromWorker();
+      if (vix != null){
+        $('in-vix').value = vix.toFixed(2);
         compute();
-        setFetchStatus('VIX ao vivo aplicado via Twelve Data. FEF2! e CL1! precisam ser preenchidos manualmente.', 'ok');
+        setFetchStatus('VIX ao vivo aplicado. FEF2! e CL1! precisam ser preenchidos manualmente.', 'ok');
       } else {
-        setFetchStatus('Twelve Data não retornou o VIX. Preencha VIX, FEF2! e CL1! manualmente.', 'warn');
+        setFetchStatus('Não consegui obter o VIX agora. Preencha VIX, FEF2! e CL1! manualmente.', 'warn');
       }
     }
   }catch(e){
