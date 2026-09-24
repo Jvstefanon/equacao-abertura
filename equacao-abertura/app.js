@@ -63,7 +63,7 @@ function setToggle(val){
 
 function initToggleListeners(){
   document.querySelectorAll('#newsToggle button').forEach(b=>{
-    b.addEventListener('click', ()=> setToggle(b.dataset.val));
+    b.addEventListener('click', ()=>{ setToggle(b.dataset.val); autoFetch(); });
   });
 }
 
@@ -217,52 +217,15 @@ function compute(){
 
 /* ============================================================
    COLETA AUTOMÁTICA
-   Fontes: Twelve Data (ADRs) e Cloudflare Worker (VIX, FEF2!, CL1!) —
-   cotação AO VIVO, só serve para "hoje".
-   Datas passadas não têm fonte grátis automática aqui, então
-   ficam sempre para preenchimento manual.
+   Fonte: Cloudflare Worker em worker/vix-worker.js, que busca VIX,
+   FEF2!, CL1! e as 6 ADRs no TradingView (Yahoo de reserva) e
+   libera CORS. Cotação AO VIVO, só serve para "hoje". Datas
+   passadas ficam sempre para preenchimento manual.
    ============================================================ */
-const API_KEY_STORAGE = 'equacaoAbertura.twelveDataKey';
+const QUOTES_WORKER_URL = 'https://vix.jvstefanon.workers.dev';
 
-// Chave fixa: cole a sua aqui entre as aspas para não precisar
-// digitá-la no navegador. Uma chave salva pelo campo da página
-// tem prioridade sobre esta.
-const DEFAULT_API_KEY = '54c2ccad079b48b2b3d24a501e84edaa';
-
-// VIX, FEF2! e CL1! não existem na Twelve Data; vêm do Cloudflare
-// Worker em worker/vix-worker.js (TradingView/Yahoo, com CORS liberado).
-const VIX_WORKER_URL = 'https://vix.jvstefanon.workers.dev';
-
-// Retorna { vix, fef2, cl1 } com a variação % do dia; o que falhar vira null.
-async function fetchExternalFromWorker(){
-  const result = { vix:null, fef2:null, cl1:null };
-  const res = await fetch(VIX_WORKER_URL);
-  if (!res.ok) return result;
-  const data = await res.json();
-  Object.keys(result).forEach(k => {
-    const pc = parseFloat(data[k] && data[k].percent_change);
-    result[k] = isNaN(pc) ? null : pc;
-  });
-  return result;
-}
-
-function getApiKey(){
-  let saved = '';
-  try { saved = localStorage.getItem(API_KEY_STORAGE) || ''; } catch(e) {}
-  return (saved.trim() || DEFAULT_API_KEY).trim();
-}
-
-function saveApiKey(){
-  const key = $('apiKeyInput').value.trim();
-  localStorage.setItem(API_KEY_STORAGE, key);
-  const el = $('apiKeyStatus');
-  el.textContent = key ? 'Chave salva neste navegador.' : 'Chave removida.';
-  el.className = 'fetch-status ok';
-}
-
-function loadApiKeyIntoInput(){
-  $('apiKeyInput').value = getApiKey();
-}
+const EXTERNAL_FIELDS = { vix:'VIX', fef2:'FEF2!', cl1:'CL1!' };
+const ADR_FIELDS = { vale:'VALE', pbr:'PBR', itub:'ITUB', bdory:'BDORY', bbd:'BBD', bolsy:'BOLSY' };
 
 function setFetchStatus(msg, kind){
   const el = $('fetchStatus');
@@ -270,33 +233,18 @@ function setFetchStatus(msg, kind){
   el.className = 'fetch-status' + (kind ? ' '+kind : '');
 }
 
-// Busca cotações "ao vivo" na Twelve Data. Retorna um objeto
-// { SIMBOLO: percentChange|null }. Símbolos que falharem viram null,
-// nunca lançam erro individualmente (para não travar o resto).
-async function fetchTwelveDataQuotes(symbols){
-  const key = getApiKey();
+// Retorna { campo: variação % do dia } para os campos pedidos;
+// o que falhar vira null.
+async function fetchFromWorker(fields){
   const result = {};
-  symbols.forEach(s => result[s] = null);
-  if (!key) return result;
-
-  const url = `https://api.twelvedata.com/quote?symbol=${encodeURIComponent(symbols.join(','))}&apikey=${encodeURIComponent(key)}`;
-  const res = await fetch(url);
+  fields.forEach(k => result[k] = null);
+  const res = await fetch(QUOTES_WORKER_URL);
+  if (!res.ok) return result;
   const data = await res.json();
-
-  // Twelve Data retorna um objeto plano quando é 1 símbolo,
-  // e um objeto { SIMBOLO: {...} } quando são vários.
-  if (symbols.length === 1){
-    const pc = parseFloat(data.percent_change);
-    result[symbols[0]] = isNaN(pc) ? null : pc;
-  } else {
-    symbols.forEach(s => {
-      const entry = data[s];
-      if (entry && entry.percent_change != null){
-        const pc = parseFloat(entry.percent_change);
-        result[s] = isNaN(pc) ? null : pc;
-      }
-    });
-  }
+  fields.forEach(k => {
+    const pc = parseFloat(data[k] && data[k].percent_change);
+    result[k] = isNaN(pc) ? null : pc;
+  });
   return result;
 }
 
@@ -311,56 +259,29 @@ function applyValues(values){
 async function fetchAuto(){
   const date = $('dateInput').value;
   if (!date){ setFetchStatus('Escolha uma data primeiro.', 'error'); return; }
+  if (date !== todayISO()){
+    setFetchStatus('Coleta automática só funciona para a data de hoje (cotação ao vivo). Para datas passadas, preencha manualmente.', 'error');
+    return;
+  }
+
   const btn = $('fetchBtn');
   btn.disabled = true;
-
-  const isToday = date === todayISO();
-  const hasKey = !!getApiKey();
+  const names = hasNews ? ADR_FIELDS : EXTERNAL_FIELDS;
+  const fields = Object.keys(names);
 
   try{
-    if (!hasKey){
-      setFetchStatus('Cole e salve sua chave da Twelve Data acima para usar a coleta automática.', 'error');
-      return;
-    }
-    if (!isToday){
-      setFetchStatus('Coleta automática só funciona para a data de hoje (cotação ao vivo). Para datas passadas, preencha manualmente.', 'error');
-      return;
-    }
+    setFetchStatus(`Buscando ${Object.values(names).join(', ')} ao vivo…`, '');
+    const values = await fetchFromWorker(fields);
+    applyValues(values);
+    compute();
 
-    if (hasNews){
-      const symbols = ['vale','pbr','itub','bdory','bbd','bolsy'];
-      const tdMap = { vale:'VALE', pbr:'PBR', itub:'ITUB', bdory:'BDORY', bbd:'BBD', bolsy:'BOLSY' };
-
-      setFetchStatus('Buscando cotações ao vivo (Twelve Data)…', '');
-      const tdSymbols = symbols.map(s => tdMap[s]);
-      const tdResult = await fetchTwelveDataQuotes(tdSymbols);
-      const values = {};
-      symbols.forEach(s => values[s] = tdResult[tdMap[s]]);
-      applyValues(values);
-      compute();
-
-      const missing = symbols.filter(s => values[s] == null);
-      if (missing.length){
-        setFetchStatus(`Twelve Data não cobriu: ${missing.join(', ').toUpperCase()}. Preencha esses manualmente.`, 'warn');
-      } else {
-        setFetchStatus('Cotações ao vivo aplicadas via Twelve Data. Confira antes de salvar.', 'ok');
-      }
-
+    const missing = fields.filter(k => values[k] == null).map(k => names[k]);
+    if (missing.length === fields.length){
+      setFetchStatus('Não consegui obter as cotações agora. Preencha manualmente.', 'warn');
+    } else if (missing.length){
+      setFetchStatus(`Cotações aplicadas, exceto ${missing.join(', ')}. Preencha esses manualmente.`, 'warn');
     } else {
-      setFetchStatus('Buscando VIX, FEF2! e CL1! ao vivo…', '');
-      const values = await fetchExternalFromWorker();
-      applyValues(values);
-      compute();
-
-      const names = { vix:'VIX', fef2:'FEF2!', cl1:'CL1!' };
-      const missing = Object.keys(values).filter(k => values[k] == null).map(k => names[k]);
-      if (missing.length === 3){
-        setFetchStatus('Não consegui obter VIX, FEF2! e CL1! agora. Preencha manualmente.', 'warn');
-      } else if (missing.length){
-        setFetchStatus(`Cotações aplicadas, exceto ${missing.join(', ')}. Preencha esses manualmente.`, 'warn');
-      } else {
-        setFetchStatus('VIX, FEF2! e CL1! ao vivo aplicados. Confira antes de salvar.', 'ok');
-      }
+      setFetchStatus('Cotações ao vivo aplicadas. Confira antes de salvar.', 'ok');
     }
   }catch(e){
     setFetchStatus('Não consegui buscar agora: ' + e.message, 'error');
@@ -369,12 +290,11 @@ async function fetchAuto(){
   }
 }
 
-// Atualização automática: busca ao abrir e depois a cada 5 minutos.
-// Só roda quando a data escolhida é hoje e há chave; senão fica quieto.
-const AUTO_REFRESH_MS = 5 * 60 * 1000;
+// Atualização automática: busca ao abrir e depois a cada 1 minuto.
+// Só roda quando a data escolhida é hoje; senão fica quieto.
+const AUTO_REFRESH_MS = 60 * 1000;
 
 function autoFetch(){
-  if (!getApiKey()) return;
   if ($('dateInput').value !== todayISO()) return;
   if ($('fetchBtn').disabled) return; // já tem uma busca em andamento
   fetchAuto();
@@ -382,8 +302,6 @@ function autoFetch(){
 
 function initFetchListener(){
   $('fetchBtn').addEventListener('click', fetchAuto);
-  $('saveApiKeyBtn').addEventListener('click', saveApiKey);
-  loadApiKeyIntoInput();
   autoFetch();
   setInterval(autoFetch, AUTO_REFRESH_MS);
 }

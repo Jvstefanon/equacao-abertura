@@ -20,23 +20,6 @@
     </div>
   </div>
 
-  <div class="panel" id="apiKeyPanel">
-    <div class="section-label">Dados automáticos ao vivo (Twelve Data)</div>
-    <div class="control-row">
-      <div class="equation-block" style="flex:1;min-width:220px;">
-        <span class="eq-label">API KEY</span>
-        <input type="text" id="apiKeyInput" placeholder="cole sua chave grátis aqui"
-          style="background:transparent;border:none;color:var(--text);font-family:var(--mono);font-size:13px;outline:none;flex:1;min-width:0;">
-      </div>
-      <button class="collect-btn" id="saveApiKeyBtn" style="border:1px solid var(--border);border-radius:8px;padding:8px 14px;">Salvar chave</button>
-    </div>
-    <div class="fetch-note">
-      Grátis em <a href="https://twelvedata.com/pricing" target="_blank" rel="noopener" style="color:var(--cyan);">twelvedata.com</a> (plano free).
-      Funciona só para a data de <strong>hoje</strong> (VIX ou as 6 ADRs, conforme o modo escolhido). FEF2!, CL1! e datas passadas precisam ser preenchidos manualmente.
-    </div>
-    <div class="fetch-status" id="apiKeyStatus"></div>
-  </div>
-
   <div class="panel">
     <div class="control-row">
       <div class="toggle-block">
@@ -51,7 +34,7 @@
       </div>
       <button class="collect-btn" id="fetchBtn">Coletar ⟳</button>
     </div>
-    <div class="fetch-note">Cotação ao vivo via Twelve Data — só funciona para hoje. Confira os números antes de salvar.</div>
+    <div class="fetch-note">Cotação via TradingView (~10 min de atraso), atualizada a cada minuto — só funciona para hoje. Confira os números antes de salvar.</div>
     <div class="fetch-status" id="fetchStatus"></div>
 
     <div class="ticker-grid" id="externalGrid">
