@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Entrar · Equação da Abertura</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400..700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="login.css">
+<link rel="icon" href="favicon.ico" sizes="48x48">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+</head>
+<body>
+<main class="login-wrap">
+  <section class="login-card" aria-labelledby="loginTitle">
+    <div class="login-brand"><span class="brand-mark" aria-hidden="true"></span><span>Equação da Abertura</span></div>
+    <h1 id="loginTitle">Entrar</h1>
+    <p class="login-sub">Use o e-mail e a senha cadastrados pelo administrador.</p>
+
+    <form id="loginForm" novalidate>
+      <div class="field">
+        <label for="email">E-mail</label>
+        <input id="email" name="email" type="email" autocomplete="username" spellcheck="false" required>
+      </div>
+      <div class="field">
+        <label for="password">Senha</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required>
+      </div>
+      <p class="form-error" id="formError" role="alert" hidden></p>
+      <button type="submit" class="submit-btn" id="submitBtn">Entrar</button>
+    </form>
+
+    <p class="login-help">Não consegue entrar? Fale com o administrador.</p>
+  </section>
+</main>
+<script src="login.js"></script>
+</body>
+</html>

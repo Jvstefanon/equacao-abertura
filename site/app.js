@@ -284,25 +284,30 @@ function initFetchListener(){
 
 
 /* ============================================================
-   REGISTRO / HISTÓRICO (localStorage — salvo no próprio navegador)
-   Os dados ficam gravados no navegador que você está usando, na
-   pasta/perfil dele. Persistem entre sessões, mas não são
-   compartilhados entre navegadores/computadores diferentes.
+   SESSÃO E REGISTROS (guardados no servidor, no banco)
+   A página exige login. O papel do usuário define o que pode
+   gravar, excluir ou importar. O navegador não guarda registros.
    ============================================================ */
-const STORAGE_KEY = 'equacaoAbertura.registros';
+let currentUser = null;
+let recordsCache = {}; // data (AAAA-MM-DD) -> registro, da última leitura
 
-function readAllRecords(){
-  try{
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
-  }catch(e){
-    console.error('Erro ao ler localStorage:', e);
-    return {};
+const ROLE_LABELS = { admin: 'Administrador', operador: 'Operador', visualizador: 'Consulta' };
+const canWrite = () => ['admin', 'operador'].includes(currentUser?.role);
+const canDelete = () => currentUser?.role === 'admin';
+
+// Chamada à API. Sessão expirada manda para a tela de entrada.
+async function api(metodo, caminho, corpo){
+  const opts = { method: metodo, headers: { 'Content-Type': 'application/json' } };
+  if (corpo !== undefined) opts.body = JSON.stringify(corpo);
+  const res = await fetch(caminho, opts);
+  let data = null;
+  try { data = await res.json(); } catch (e) { data = null; }
+  if (res.status === 401){
+    window.location.href = '/entrar';
+    throw new Error('Sua sessão expirou. Entre de novo.');
   }
-}
-
-function writeAllRecords(records){
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+  if (!res.ok) throw new Error((data && data.error) || `erro ${res.status}`);
+  return data;
 }
 
 function showStatus(msg, isError){
@@ -321,7 +326,7 @@ function escapeHtml(str){
 /* ============================================================
    IMAGEM ANEXADA AO REGISTRO
    Comprimida no navegador (canvas) antes de virar base64, para não
-   pesar demais no localStorage (que tem limite de poucos MB).
+   pesar demais no envio ao servidor.
    ============================================================ */
 let currentImage = null;
 
@@ -394,9 +399,9 @@ function initImageListener(){
 }
 
 function openImageLightbox(date){
-  const rec = readAllRecords()[date];
-  if (!rec || !rec.image) return;
-  $('lightboxImg').src = rec.image;
+  const rec = recordsCache[date];
+  if (!rec || !rec.imagem) return;
+  $('lightboxImg').src = rec.imagem;
   $('imageLightbox').style.display = 'flex';
 }
 
@@ -405,91 +410,103 @@ function closeImageLightbox(){
 }
 
 
-function saveRecord(){
+async function saveRecord(){
+  if (!canWrite()){
+    showStatus('Seu acesso é só de consulta.', true);
+    return;
+  }
   const date = $('dateInput').value;
   if (!date){ showStatus('Escolha uma data antes de salvar.', true); return; }
   const result = compute();
-  const record = {
-    date, hasNews, values: currentValues(),
-    total: result.total, classification: result.classification,
-    dayResult, description: $('descInput').value.trim(),
-    image: currentImage,
-    savedAt: new Date().toISOString()
+  const corpo = {
+    temNoticia: hasNews,
+    valores: currentValues(),
+    total: result.total,
+    classificacao: result.classification,
+    resultadoDia: dayResult,
+    observacoes: $('descInput').value.trim(),
+    imagem: currentImage
   };
+  const btn = $('saveBtn');
+  btn.disabled = true;
   try{
-    const records = readAllRecords();
-    records[date] = record;
-    writeAllRecords(records);
+    await api('PUT', `/api/registros/${date}`, corpo);
     $('descInput').value = '';
     clearImageField();
     showStatus(`Registro de ${fmtBR(date)} salvo.`, false);
-    loadHistory();
+    await loadHistory();
   }catch(e){
-    const msg = (e.name === 'QuotaExceededError')
-      ? 'Espaço do navegador cheio (localStorage). Tente remover imagens de registros antigos.'
-      : 'Erro ao salvar: ' + e.message;
-    showStatus(msg, true);
+    // Os dados continuam na tela para tentar de novo
+    showStatus('Não foi possível salvar: ' + e.message, true);
+  }finally{
+    btn.disabled = !canWrite();
   }
 }
 
-function loadHistory(){
+async function loadHistory(){
   const wrap = $('historyWrap');
   try{
-    const records = Object.values(readAllRecords()).sort((a,b)=> b.date.localeCompare(a.date));
-    if (records.length === 0){
+    const { registros } = await api('GET', '/api/registros');
+    recordsCache = Object.fromEntries(registros.map(r => [r.data, r]));
+    if (registros.length === 0){
       wrap.innerHTML = '<div class="empty-state">Nenhum registro salvo ainda.</div>';
       return;
     }
-    let html = '<table><thead><tr><th>Data</th><th>Base</th><th>Leitura</th><th>Classificação</th><th>Resultado</th><th>Descrição</th><th>Img</th><th></th></tr></thead><tbody>';
-    for (const r of records){
-      const tone = r.total < -1.5 ? 'down-color' : r.total > 1.5 ? 'up-color' : 'flat-color';
-      const resultTone = r.dayResult === 'NEGATIVA' ? 'down-color' : 'up-color';
-      const resultLabel = r.dayResult === 'NEGATIVA' ? 'NEGATIVA' : 'POSITIVA';
-      const desc = r.description || '';
+    let html = '<table><thead><tr><th>Data</th><th>Base</th><th>Leitura</th><th>Classificação</th><th>Resultado</th><th>Autor</th><th>Descrição</th><th>Img</th><th></th></tr></thead><tbody>';
+    for (const r of registros){
+      const total = Number(r.total);
+      const tone = total < -1.5 ? 'down-color' : total > 1.5 ? 'up-color' : 'flat-color';
+      const resultTone = r.resultadoDia === 'NEGATIVA' ? 'down-color' : 'up-color';
+      const desc = r.observacoes || '';
       const descShort = desc.length > 40 ? desc.slice(0, 40) + '…' : desc;
-      const imgCell = r.image
-        ? `<img src="${r.image}" onclick="openImageLightbox('${r.date}')" style="width:36px;height:36px;object-fit:cover;border-radius:6px;cursor:zoom-in;border:1px solid var(--border);">`
+      const imgCell = r.imagem
+        ? `<img src="${r.imagem}" alt="Print do gráfico de ${fmtBR(r.data)}" onclick="openImageLightbox('${r.data}')" style="width:36px;height:36px;object-fit:cover;border-radius:6px;cursor:zoom-in;border:1px solid var(--rule);">`
         : '<span class="empty-state" style="padding:0;">—</span>';
+      const excluir = canDelete() ? `<button onclick="deleteRecord('${r.data}')">excluir</button>` : '';
       html += `<tr>
-        <td class="date">${fmtBR(r.date)}</td>
-        <td>${r.hasNews ? 'ADRs' : 'Externo'}</td>
-        <td class="pct ${tone}">${r.total >= 0 ? '+' : ''}${fmtPct(r.total)}%</td>
-        <td>${r.classification}</td>
-        <td class="${resultTone}" style="font-weight:700;font-size:11px;">${resultLabel}</td>
+        <td class="date">${fmtBR(r.data)}</td>
+        <td>${r.temNoticia ? 'ADRs' : 'Externo'}</td>
+        <td class="pct ${tone}">${total >= 0 ? '+' : ''}${fmtPct(total)}%</td>
+        <td>${escapeHtml(r.classificacao)}</td>
+        <td class="${resultTone}" style="font-weight:700;font-size:11px;">${r.resultadoDia}</td>
+        <td>${escapeHtml(r.criadoPor ? r.criadoPor.name : '—')}</td>
         <td title="${escapeHtml(desc)}">${escapeHtml(descShort) || '<span class="empty-state" style="padding:0;">—</span>'}</td>
         <td>${imgCell}</td>
         <td class="row-actions">
-          <button onclick="loadIntoForm('${r.date}')">abrir</button>
-          <button onclick="deleteRecord('${r.date}')">excluir</button>
+          <button onclick="loadIntoForm('${r.data}')">abrir</button>
+          ${excluir}
         </td>
       </tr>`;
     }
     html += '</tbody></table>';
     wrap.innerHTML = html;
   }catch(e){
-    wrap.innerHTML = '<div class="empty-state">Erro ao carregar histórico: ' + e.message + '</div>';
+    wrap.innerHTML = '<div class="empty-state">Não foi possível carregar o histórico: ' + escapeHtml(e.message) + '</div>';
   }
 }
 
-function loadIntoForm(date){
+async function loadIntoForm(date){
   try{
-    const records = readAllRecords();
-    const rec = records[date];
-    if (!rec) return;
-    $('dateInput').value = rec.date;
-    setToggle(rec.hasNews ? 'SIM' : 'NÃO');
-    if (rec.hasNews){
-      $('in-vale').value = Number(rec.values.vale).toFixed(2); $('in-pbr').value = Number(rec.values.pbr).toFixed(2); $('in-itub').value = Number(rec.values.itub).toFixed(2);
-      $('in-bdory').value = Number(rec.values.bdory).toFixed(2); $('in-bbd').value = Number(rec.values.bbd).toFixed(2); $('in-bolsy').value = Number(rec.values.bolsy).toFixed(2);
-    } else {
-      $('in-vix').value = Number(rec.values.vix).toFixed(2); $('in-fef2').value = Number(rec.values.fef2).toFixed(2); $('in-cl1').value = Number(rec.values.cl1).toFixed(2);
+    let rec = recordsCache[date];
+    if (!rec){
+      const resposta = await api('GET', `/api/registros/${date}`);
+      rec = resposta.registro;
     }
-    setResultToggle(rec.dayResult === 'NEGATIVA' ? 'NEGATIVA' : 'POSITIVA');
-    $('descInput').value = rec.description || '';
-    setImagePreview(rec.image || null);
+    if (!rec) return;
+    $('dateInput').value = rec.data;
+    setToggle(rec.temNoticia ? 'SIM' : 'NÃO');
+    if (rec.temNoticia){
+      $('in-vale').value = Number(rec.valores.vale).toFixed(2); $('in-pbr').value = Number(rec.valores.pbr).toFixed(2); $('in-itub').value = Number(rec.valores.itub).toFixed(2);
+      $('in-bdory').value = Number(rec.valores.bdory).toFixed(2); $('in-bbd').value = Number(rec.valores.bbd).toFixed(2); $('in-bolsy').value = Number(rec.valores.bolsy).toFixed(2);
+    } else {
+      $('in-vix').value = Number(rec.valores.vix).toFixed(2); $('in-fef2').value = Number(rec.valores.fef2).toFixed(2); $('in-cl1').value = Number(rec.valores.cl1).toFixed(2);
+    }
+    setResultToggle(rec.resultadoDia === 'NEGATIVA' ? 'NEGATIVA' : 'POSITIVA');
+    $('descInput').value = rec.observacoes || '';
+    setImagePreview(rec.imagem || null);
     $('imageInput').value = '';
-    $('imageStatus').textContent = rec.image ? 'Imagem deste registro carregada.' : '';
-    $('imageStatus').className = 'fetch-status' + (rec.image ? ' ok' : '');
+    $('imageStatus').textContent = rec.imagem ? 'Imagem deste registro carregada.' : '';
+    $('imageStatus').className = 'fetch-status' + (rec.imagem ? ' ok' : '');
     compute();
     showStatus(`Registro de ${fmtBR(date)} carregado.`, false);
     window.scrollTo({top:0, behavior:'smooth'});
@@ -498,12 +515,13 @@ function loadIntoForm(date){
   }
 }
 
-function deleteRecord(date){
+async function deleteRecord(date){
+  if (!canDelete()) return;
+  if (!confirm(`Excluir o registro de ${fmtBR(date)}? Essa ação não pode ser desfeita.`)) return;
   try{
-    const records = readAllRecords();
-    delete records[date];
-    writeAllRecords(records);
-    loadHistory();
+    await api('DELETE', `/api/registros/${date}`);
+    showStatus(`Registro de ${fmtBR(date)} excluído.`, false);
+    await loadHistory();
   }catch(e){
     showStatus('Erro ao excluir registro: ' + e.message, true);
   }
@@ -516,8 +534,8 @@ function initSaveListener(){
 
 /* ============================================================
    EXPORTAR / IMPORTAR HISTÓRICO (backup em JSON)
-   Útil para levar o histórico de um navegador/dispositivo para
-   outro, já que os dados ficam presos ao localStorage local.
+   Útil para guardar uma cópia do histórico ou levá-lo para outro
+   banco. Aceita o arquivo gerado pela exportação.
    ============================================================ */
 function setHistoryIoStatus(msg, kind){
   const el = $('historyIoStatus');
@@ -525,15 +543,14 @@ function setHistoryIoStatus(msg, kind){
   el.className = 'fetch-status' + (kind ? ' '+kind : '');
 }
 
-function exportHistory(){
+async function exportHistory(){
   try{
-    const records = readAllRecords();
-    const count = Object.keys(records).length;
-    if (count === 0){
+    const { registros } = await api('GET', '/api/registros');
+    if (registros.length === 0){
       setHistoryIoStatus('Não há registros para exportar.', 'warn');
       return;
     }
-    const dataStr = JSON.stringify(records, null, 2);
+    const dataStr = JSON.stringify(registros, null, 2);
     const blob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -543,33 +560,49 @@ function exportHistory(){
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    setHistoryIoStatus(`${count} registro(s) exportado(s).`, 'ok');
+    setHistoryIoStatus(`${registros.length} registro(s) exportado(s).`, 'ok');
   }catch(e){
     setHistoryIoStatus('Erro ao exportar: ' + e.message, 'error');
   }
 }
 
+// Aceita o formato novo (lista) e o antigo (objeto por data, exportado pelo navegador)
 function importHistoryFile(file){
   const reader = new FileReader();
-  reader.onload = (e) => {
+  reader.onload = async (e) => {
     try{
-      const imported = JSON.parse(e.target.result);
-      if (typeof imported !== 'object' || imported === null || Array.isArray(imported)){
-        throw new Error('o arquivo não tem o formato esperado');
-      }
-      const keys = Object.keys(imported);
-      if (keys.length === 0){
+      const parsed = JSON.parse(e.target.result);
+      const lista = Array.isArray(parsed)
+        ? parsed
+        : (parsed && typeof parsed === 'object' ? Object.values(parsed) : null);
+      if (!lista) throw new Error('o arquivo não tem o formato esperado');
+      if (lista.length === 0){
         setHistoryIoStatus('O arquivo não contém registros.', 'warn');
         return;
       }
-      const existing = readAllRecords();
-      const overwritten = keys.filter(k => existing[k]).length;
-      const merged = { ...existing, ...imported };
-      writeAllRecords(merged);
-      loadHistory();
+      let importados = 0;
+      let falhas = 0;
+      for (const item of lista){
+        try{
+          const data = item.data || item.date;
+          await api('PUT', `/api/registros/${data}`, {
+            temNoticia: item.temNoticia ?? item.hasNews ?? false,
+            valores: item.valores ?? item.values,
+            total: Number(item.total),
+            classificacao: item.classificacao ?? item.classification,
+            resultadoDia: item.resultadoDia ?? item.dayResult ?? 'POSITIVA',
+            observacoes: item.observacoes ?? item.description ?? '',
+            imagem: item.imagem ?? item.image ?? null
+          });
+          importados++;
+        }catch(err){
+          falhas++;
+        }
+      }
+      await loadHistory();
       setHistoryIoStatus(
-        `${keys.length} registro(s) importado(s)${overwritten ? ` (${overwritten} substituído(s))` : ''}.`,
-        'ok'
+        `${importados} registro(s) importado(s)${falhas ? `, ${falhas} com erro` : ''}.`,
+        falhas ? 'warn' : 'ok'
       );
     }catch(err){
       setHistoryIoStatus('Erro ao importar: arquivo inválido — ' + err.message, 'error');
@@ -593,8 +626,22 @@ function initHistoryIoListeners(){
 /* ============================================================
    INICIALIZAÇÃO
    ============================================================ */
-function init(){
+async function init(){
   $('dateInput').value = todayISO();
+  try{
+    const { user } = await api('GET', '/api/auth/me');
+    currentUser = user;
+  }catch(e){
+    // Sessão expirada já redirecionou para a entrada
+    setFetchStatus('Não foi possível confirmar seu acesso: ' + e.message, 'error');
+    return;
+  }
+  $('userName').textContent = currentUser.name;
+  $('userRole').textContent = ROLE_LABELS[currentUser.role] || currentUser.role;
+  $('userBox').hidden = false;
+  $('logoutBtn').addEventListener('click', logout);
+  applyRolePermissions();
+
   initToggleListeners();
   initResultToggleListeners();
   initImageListener();
@@ -605,6 +652,21 @@ function init(){
   setToggle('NÃO');
   setResultToggle('POSITIVA');
   loadHistory();
+}
+
+function applyRolePermissions(){
+  const gravar = canWrite();
+  $('saveBtn').disabled = !gravar;
+  $('importHistoryBtn').disabled = !gravar;
+  $('roleHint').hidden = gravar;
+}
+
+async function logout(){
+  try{
+    await fetch('/api/auth/logout', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+  } finally {
+    window.location.href = '/entrar';
+  }
 }
 
 

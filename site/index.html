@@ -20,6 +20,11 @@
     <div class="site-right">
       <span class="live"><span class="dot" aria-hidden="true"></span>Sistema ativo</span>
       <input type="date" id="dateInput" aria-label="Data do registro">
+      <div class="user-box" id="userBox" hidden>
+        <span class="user-name" id="userName"></span>
+        <span class="role-tag" id="userRole"></span>
+        <button class="btn-ghost" id="logoutBtn" type="button">Sair</button>
+      </div>
     </div>
   </header>
 
@@ -185,6 +190,7 @@
         <p class="fetch-note">A imagem é comprimida automaticamente. Evite muitas imagens grandes, porque o navegador tem limite de espaço.</p>
       </div>
 
+      <p class="fetch-note" id="roleHint" hidden>Seu acesso é só de consulta. Para registrar o dia, peça a um administrador o perfil de operador.</p>
       <div class="reg-row">
         <button class="save-btn" id="saveBtn">Salvar registro do dia</button>
       </div>

@@ -298,6 +298,17 @@ td img{height:36px;width:36px;object-fit:cover;border-radius:8px;border:1px soli
   *,*::before,*::after{animation:none!important;transition:none!important;}
 }
 
+/* ---------- Usuário logado ---------- */
+[hidden]{display:none!important;}
+.user-box{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.user-name{font-weight:600;font-size:14px;}
+.role-tag{
+  font-size:12px;color:var(--ink-2);
+  background:var(--paper);border:1px solid var(--rule);border-radius:999px;padding:3px 10px;
+}
+.save-btn:disabled,
+.ghost-btn:disabled{opacity:.45;cursor:not-allowed;}
+
 /* ---------- Responsivo ---------- */
 @media (max-width:900px){
   .hero{grid-template-columns:1fr;gap:40px;padding:48px 0 44px;}
