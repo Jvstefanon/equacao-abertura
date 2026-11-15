@@ -22,11 +22,6 @@ function fmtPct(v){
   return s.replace('.', ',');
 }
 
-function signed(v){
-  const f = fmtPct(Math.abs(v));
-  return v < 0 ? `(-${f}%)` : `+${f}%`;
-}
-
 function num(id){ const v = parseFloat($(id).value); return isNaN(v) ? 0 : v; }
 
 
@@ -52,12 +47,6 @@ function setToggle(val){
   });
   $('externalGrid').style.display = hasNews ? 'none' : 'grid';
   $('adrGrid').style.display = hasNews ? 'grid' : 'none';
-  $('subtitleText').textContent = hasNews
-    ? 'Com notícia 3★ às 9h: ignora o externo — a intenção sai da soma das 6 ADRs em Nova York.'
-    : 'Sem notícia 3★ às 9h: a intenção sai do externo — VIX inverte o sinal, FEF2! e CL1! mantêm.';
-  $('equationText').innerHTML = hasNews
-    ? '<span class="eq-label">EQUAÇÃO</span>VALE + PBR + ITUB + BDORY + BBD + BOLSY = Intenção'
-    : '<span class="eq-label">EQUAÇÃO</span>( -VIX ) + FEF2! + CL1! = Intenção';
   compute();
 }
 
@@ -132,13 +121,13 @@ function initInputListeners(){
    CLASSIFICAÇÃO E ESCALA VISUAL
    ============================================================ */
 function classify(v){
-  if (v < -4.5) return {sign:'NEGATIVA', intensity:'FORTE', tone:'down', phrase:'busca regiões vendedoras acima da abertura.'};
-  if (v < -2.5) return {sign:'NEGATIVA', intensity:'MODERADA', tone:'down', phrase:'busca regiões vendedoras acima da abertura.'};
-  if (v < -1.5) return {sign:'NEGATIVA', intensity:'FRACA', tone:'down', phrase:'busca regiões vendedoras acima da abertura.'};
-  if (v <= 1.5) return {sign:'LATERAL', intensity:'', tone:'flat', phrase:'sem viés definido, aguarda confirmação de direção.'};
-  if (v <= 2.5) return {sign:'POSITIVA', intensity:'FRACA', tone:'up', phrase:'busca regiões compradoras abaixo da abertura.'};
-  if (v <= 4.5) return {sign:'POSITIVA', intensity:'MODERADA', tone:'up', phrase:'busca regiões compradoras abaixo da abertura.'};
-  return {sign:'POSITIVA', intensity:'FORTE', tone:'up', phrase:'busca regiões compradoras abaixo da abertura.'};
+  if (v < -4.5) return {sign:'NEGATIVA', intensity:'FORTE', tone:'down', phrase:'Busca regiões vendedoras acima da abertura.'};
+  if (v < -2.5) return {sign:'NEGATIVA', intensity:'MODERADA', tone:'down', phrase:'Busca regiões vendedoras acima da abertura.'};
+  if (v < -1.5) return {sign:'NEGATIVA', intensity:'FRACA', tone:'down', phrase:'Busca regiões vendedoras acima da abertura.'};
+  if (v <= 1.5) return {sign:'LATERAL', intensity:'', tone:'flat', phrase:'Sem direção definida; aguarda confirmação.'};
+  if (v <= 2.5) return {sign:'POSITIVA', intensity:'FRACA', tone:'up', phrase:'Busca regiões compradoras abaixo da abertura.'};
+  if (v <= 4.5) return {sign:'POSITIVA', intensity:'MODERADA', tone:'up', phrase:'Busca regiões compradoras abaixo da abertura.'};
+  return {sign:'POSITIVA', intensity:'FORTE', tone:'up', phrase:'Busca regiões compradoras abaixo da abertura.'};
 }
 
 function toneColorClass(tone){
@@ -170,7 +159,7 @@ function renderScale(total){
   const pct = ((clamped + 6) / 12) * 100;
   $('pointer').style.left = pct + '%';
   const c = classify(total);
-  $('pointer').style.color = c.tone==='up' ? 'var(--green)' : c.tone==='down' ? 'var(--red)' : 'var(--orange)';
+  $('pointer').style.color = c.tone==='up' ? 'var(--buy)' : c.tone==='down' ? 'var(--sell)' : 'var(--neutral)';
   $('pointerValue').textContent = (total>=0?'+':'') + fmtPct(total) + '%';
   const [zs, ze] = ZONE_BOUNDS[zoneIndex(total)];
   const zone = $('activeZone');
@@ -180,33 +169,22 @@ function renderScale(total){
 
 
 /* ============================================================
-   CÁLCULO PRINCIPAL (equação + atualização da UI)
+   LEITURA DO DIA (cálculo e atualização da tela)
    ============================================================ */
 function compute(){
   const v = currentValues();
-  let total, calcParts;
-  if (hasNews){
-    total = v.vale + v.pbr + v.itub + v.bdory + v.bbd + v.bolsy;
-    calcParts = [v.vale, v.pbr, v.itub, v.bdory, v.bbd, v.bolsy];
-  } else {
-    total = (-v.vix) + v.fef2 + v.cl1;
-    calcParts = [-v.vix, v.fef2, v.cl1];
-  }
-
-  let html = '<span class="lbl">CÁLCULO</span>';
-  calcParts.forEach((p, i) => {
-    if (i > 0) html += '<span class="eq"> + </span>';
-    html += `<span class="${p<0?'down':'up'}">${signed(p)}</span>`;
-  });
+  const total = hasNews
+    ? v.vale + v.pbr + v.itub + v.bdory + v.bbd + v.bolsy
+    : (-v.vix) + v.fef2 + v.cl1;
   const c = classify(total);
-  html += `<span class="eq"> = </span><span class="${c.tone==='up'?'up':c.tone==='down'?'down':'eq'}">${(total>=0?'+':'')+fmtPct(total)}%</span>`;
-  $('calcPill').innerHTML = html;
 
   renderScale(total);
 
   $('rv').textContent = (total>=0?'+':'') + fmtPct(total) + '%';
   $('rv').className = 'rv ' + toneColorClass(c.tone);
-  $('rc').textContent = c.sign === 'LATERAL' ? 'ABERTURA LATERAL' : `ABERTURA ${c.sign} ${c.intensity}`;
+  $('rc').textContent = c.sign === 'LATERAL'
+    ? 'Abertura lateral'
+    : `Abertura ${c.sign.toLowerCase()}${c.intensity ? ' ' + c.intensity.toLowerCase() : ''}`;
   $('rc').className = 'rc ' + toneColorClass(c.tone);
   $('rp').textContent = c.phrase;
 
@@ -217,10 +195,8 @@ function compute(){
 
 /* ============================================================
    COLETA AUTOMÁTICA
-   Fonte: Cloudflare Worker em worker/vix-worker.js, que busca VIX,
-   FEF2!, CL1! e as 6 ADRs no TradingView (Yahoo de reserva) e
-   libera CORS. Cotação AO VIVO, só serve para "hoje". Datas
-   passadas ficam sempre para preenchimento manual.
+   Cotações ao vivo, válidas só para hoje. Datas passadas
+   ficam para preenchimento manual.
    ============================================================ */
 const QUOTES_WORKER_URL = 'https://vix.jvstefanon.workers.dev';
 
@@ -464,7 +440,7 @@ function loadHistory(){
       wrap.innerHTML = '<div class="empty-state">Nenhum registro salvo ainda.</div>';
       return;
     }
-    let html = '<table><thead><tr><th>Data</th><th>Base</th><th>Intenção</th><th>Classificação</th><th>Resultado</th><th>Descrição</th><th>Img</th><th></th></tr></thead><tbody>';
+    let html = '<table><thead><tr><th>Data</th><th>Base</th><th>Leitura</th><th>Classificação</th><th>Resultado</th><th>Descrição</th><th>Img</th><th></th></tr></thead><tbody>';
     for (const r of records){
       const tone = r.total < -1.5 ? 'down-color' : r.total > 1.5 ? 'up-color' : 'flat-color';
       const resultTone = r.dayResult === 'NEGATIVA' ? 'down-color' : 'up-color';

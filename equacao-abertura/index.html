@@ -3,73 +3,95 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>A Equação da Abertura</title>
+<title>Equação da Abertura — leitura do viés de abertura da B3</title>
+<meta name="description" content="Leitura do viés de abertura da B3 a partir dos mercados externos e das ADRs.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Martian+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400..700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <link rel="icon" href="favicon.ico" sizes="48x48">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 </head>
 <body>
-<div class="sky" aria-hidden="true"></div>
-
 <div class="wrap">
 
-  <header class="top">
-    <div class="titleblock">
-      <h1>A Equação da Abertura</h1>
-      <p id="subtitleText">Sem notícia 3★ às 9h: a intenção sai do externo — VIX inverte o sinal, FEF2! e CL1! mantêm.</p>
-    </div>
-    <div class="statuscol">
-      <div class="status-pill"><span class="dot"></span>Sistema ativo</div>
+  <header class="site">
+    <div class="brand"><span class="brand-mark" aria-hidden="true"></span>Equação da Abertura</div>
+    <div class="site-right">
+      <span class="live"><span class="dot" aria-hidden="true"></span>Sistema ativo</span>
       <input type="date" id="dateInput" aria-label="Data do registro">
     </div>
   </header>
 
-  <main class="layout">
+  <section class="hero">
+    <div class="hero-copy">
+      <h1>Saiba para que lado a B3 deve abrir.</h1>
+      <p class="lede">Uma leitura objetiva do viés de abertura do pregão, montada a partir dos mercados externos e das ADRs. Atualize as cotações, veja o resultado e registre o seu dia.</p>
+      <ul class="points">
+        <li>Cotações atualizadas a cada minuto</li>
+        <li>Leitura imediata de força e direção</li>
+        <li>Diário com histórico e print do gráfico</li>
+      </ul>
+    </div>
 
-    <!-- ENTRADAS -->
+    <article class="reading" aria-labelledby="readingTitle">
+      <h2 id="readingTitle" class="visually-hidden">Leitura da abertura</h2>
+      <div class="readout" id="readout" aria-live="polite">
+        <span class="rv" id="rv">+0,0%</span>
+        <span class="rc" id="rc">Abertura lateral</span>
+        <span class="rp" id="rp">Sem direção definida; aguarda confirmação.</span>
+      </div>
+      <div class="scale">
+        <div class="scale-ends"><span class="neg">Vendedora</span><span class="pos">Compradora</span></div>
+        <div class="scale-wrap">
+          <div class="pointer" id="pointer"><span id="pointerValue">+0,0%</span><div class="tri"></div></div>
+          <div class="scale-track" id="scaleTrack">
+            <div class="zero-dot" aria-hidden="true"></div>
+            <div class="active-zone" id="activeZone"></div>
+          </div>
+        </div>
+      </div>
+    </article>
+  </section>
+
+  <main class="workspace">
+
     <section class="panel inputs" aria-labelledby="inputsTitle">
       <div class="panel-head">
-        <h2 id="inputsTitle">Entradas</h2>
-        <button class="collect-btn" id="fetchBtn">Coletar ⟳</button>
+        <h2 id="inputsTitle">Cotações do dia</h2>
+        <button class="btn-ghost" id="fetchBtn">Atualizar cotações</button>
       </div>
 
       <div class="toggle-block">
-        <span class="toggle-label">Tem notícia 3★ às 9h?</span>
+        <span class="toggle-label">Houve notícia 3★ às 9h?</span>
         <div class="segmented" id="newsToggle">
-          <button data-val="NÃO" class="active">Não<small>mais comum</small></button>
-          <button data-val="SIM">Sim<small>3★ às 9h</small></button>
+          <button data-val="NÃO" class="active">Não<small>caso mais comum</small></button>
+          <button data-val="SIM">Sim<small>usa as ADRs</small></button>
         </div>
       </div>
 
-      <div class="equation-block" id="equationText">
-        <span class="eq-label">EQUAÇÃO</span>( -VIX ) + FEF2! + CL1! = Intenção
-      </div>
-
-      <div class="fetch-note">Cotação via TradingView (~10 min de atraso), atualizada a cada minuto. Só funciona para hoje — confira os números antes de salvar.</div>
+      <p class="fetch-note">Cotações com cerca de 10 minutos de atraso. Valem só para hoje: confira os números antes de salvar.</p>
       <div class="fetch-status" id="fetchStatus"></div>
 
       <div class="ticker-grid" id="externalGrid">
-        <div class="ticker-card" style="--card-color:var(--orange)">
-          <div class="t-head"><span class="t-name">VIX</span><span class="t-sub">inverte o sinal</span></div>
+        <div class="ticker-card">
+          <div class="t-head"><span class="t-name">VIX</span><span class="t-sub">Índice de volatilidade</span></div>
           <div class="stepper">
             <button class="step-btn" aria-label="Diminuir VIX" onclick="adjust('in-vix',-0.1)">–</button>
             <div class="value-pill"><input type="number" step="0.01" id="in-vix" value="-4.10" aria-label="VIX %"><span class="pct-sign">%</span></div>
             <button class="step-btn" aria-label="Aumentar VIX" onclick="adjust('in-vix',0.1)">+</button>
           </div>
         </div>
-        <div class="ticker-card" style="--card-color:var(--coral)">
-          <div class="t-head"><span class="t-name">FEF2!</span><span class="t-sub">minério · mantém</span></div>
+        <div class="ticker-card">
+          <div class="t-head"><span class="t-name">FEF2!</span><span class="t-sub">Minério de ferro</span></div>
           <div class="stepper">
             <button class="step-btn" aria-label="Diminuir FEF2" onclick="adjust('in-fef2',-0.1)">–</button>
             <div class="value-pill"><input type="number" step="0.01" id="in-fef2" value="-0.70" aria-label="FEF2 %"><span class="pct-sign">%</span></div>
             <button class="step-btn" aria-label="Aumentar FEF2" onclick="adjust('in-fef2',0.1)">+</button>
           </div>
         </div>
-        <div class="ticker-card" style="--card-color:var(--violet)">
-          <div class="t-head"><span class="t-name">CL1!</span><span class="t-sub">petróleo · mantém</span></div>
+        <div class="ticker-card">
+          <div class="t-head"><span class="t-name">CL1!</span><span class="t-sub">Petróleo</span></div>
           <div class="stepper">
             <button class="step-btn" aria-label="Diminuir CL1" onclick="adjust('in-cl1',-0.1)">–</button>
             <div class="value-pill"><input type="number" step="0.01" id="in-cl1" value="0.30" aria-label="CL1 %"><span class="pct-sign">%</span></div>
@@ -79,91 +101,62 @@
       </div>
 
       <div class="ticker-grid" id="adrGrid" style="display:none;">
-        <div class="ticker-card" style="--card-color:var(--green)">
+        <div class="ticker-card">
           <div class="t-head"><span class="t-name">VALE</span><span class="t-sub">Vale</span></div>
-          <div class="stepper"><button class="step-btn" aria-label="Diminuir VALE" onclick="adjust('in-vale',-0.1)">–</button>
+          <div class="stepper">
+            <button class="step-btn" aria-label="Diminuir VALE" onclick="adjust('in-vale',-0.1)">–</button>
             <div class="value-pill"><input type="number" step="0.01" id="in-vale" value="-0.26" aria-label="VALE %"><span class="pct-sign">%</span></div>
-            <button class="step-btn" aria-label="Aumentar VALE" onclick="adjust('in-vale',0.1)">+</button></div>
+            <button class="step-btn" aria-label="Aumentar VALE" onclick="adjust('in-vale',0.1)">+</button>
+          </div>
         </div>
-        <div class="ticker-card" style="--card-color:var(--coral)">
+        <div class="ticker-card">
           <div class="t-head"><span class="t-name">PBR</span><span class="t-sub">Petrobras</span></div>
-          <div class="stepper"><button class="step-btn" aria-label="Diminuir PBR" onclick="adjust('in-pbr',-0.1)">–</button>
+          <div class="stepper">
+            <button class="step-btn" aria-label="Diminuir PBR" onclick="adjust('in-pbr',-0.1)">–</button>
             <div class="value-pill"><input type="number" step="0.01" id="in-pbr" value="-1.90" aria-label="PBR %"><span class="pct-sign">%</span></div>
-            <button class="step-btn" aria-label="Aumentar PBR" onclick="adjust('in-pbr',0.1)">+</button></div>
+            <button class="step-btn" aria-label="Aumentar PBR" onclick="adjust('in-pbr',0.1)">+</button>
+          </div>
         </div>
-        <div class="ticker-card" style="--card-color:var(--orange)">
+        <div class="ticker-card">
           <div class="t-head"><span class="t-name">ITUB</span><span class="t-sub">Itaú</span></div>
-          <div class="stepper"><button class="step-btn" aria-label="Diminuir ITUB" onclick="adjust('in-itub',-0.1)">–</button>
+          <div class="stepper">
+            <button class="step-btn" aria-label="Diminuir ITUB" onclick="adjust('in-itub',-0.1)">–</button>
             <div class="value-pill"><input type="number" step="0.01" id="in-itub" value="-0.85" aria-label="ITUB %"><span class="pct-sign">%</span></div>
-            <button class="step-btn" aria-label="Aumentar ITUB" onclick="adjust('in-itub',0.1)">+</button></div>
+            <button class="step-btn" aria-label="Aumentar ITUB" onclick="adjust('in-itub',0.1)">+</button>
+          </div>
         </div>
-        <div class="ticker-card" style="--card-color:var(--gold)">
+        <div class="ticker-card">
           <div class="t-head"><span class="t-name">BDORY</span><span class="t-sub">Banco do Brasil</span></div>
-          <div class="stepper"><button class="step-btn" aria-label="Diminuir BDORY" onclick="adjust('in-bdory',-0.1)">–</button>
+          <div class="stepper">
+            <button class="step-btn" aria-label="Diminuir BDORY" onclick="adjust('in-bdory',-0.1)">–</button>
             <div class="value-pill"><input type="number" step="0.01" id="in-bdory" value="-0.45" aria-label="BDORY %"><span class="pct-sign">%</span></div>
-            <button class="step-btn" aria-label="Aumentar BDORY" onclick="adjust('in-bdory',0.1)">+</button></div>
+            <button class="step-btn" aria-label="Aumentar BDORY" onclick="adjust('in-bdory',0.1)">+</button>
+          </div>
         </div>
-        <div class="ticker-card" style="--card-color:var(--pink)">
+        <div class="ticker-card">
           <div class="t-head"><span class="t-name">BBD</span><span class="t-sub">Bradesco</span></div>
-          <div class="stepper"><button class="step-btn" aria-label="Diminuir BBD" onclick="adjust('in-bbd',-0.1)">–</button>
+          <div class="stepper">
+            <button class="step-btn" aria-label="Diminuir BBD" onclick="adjust('in-bbd',-0.1)">–</button>
             <div class="value-pill"><input type="number" step="0.01" id="in-bbd" value="0.29" aria-label="BBD %"><span class="pct-sign">%</span></div>
-            <button class="step-btn" aria-label="Aumentar BBD" onclick="adjust('in-bbd',0.1)">+</button></div>
+            <button class="step-btn" aria-label="Aumentar BBD" onclick="adjust('in-bbd',0.1)">+</button>
+          </div>
         </div>
-        <div class="ticker-card" style="--card-color:var(--cyan)">
+        <div class="ticker-card">
           <div class="t-head"><span class="t-name">BOLSY</span><span class="t-sub">B3</span></div>
-          <div class="stepper"><button class="step-btn" aria-label="Diminuir BOLSY" onclick="adjust('in-bolsy',-0.1)">–</button>
+          <div class="stepper">
+            <button class="step-btn" aria-label="Diminuir BOLSY" onclick="adjust('in-bolsy',-0.1)">–</button>
             <div class="value-pill"><input type="number" step="0.01" id="in-bolsy" value="-0.49" aria-label="BOLSY %"><span class="pct-sign">%</span></div>
-            <button class="step-btn" aria-label="Aumentar BOLSY" onclick="adjust('in-bolsy',0.1)">+</button></div>
+            <button class="step-btn" aria-label="Aumentar BOLSY" onclick="adjust('in-bolsy',0.1)">+</button>
+          </div>
         </div>
       </div>
 
       <div class="util-row">
-        <button id="randomBtn">⇄ Aleatório</button>
-        <button id="resetBtn">↻ Repor</button>
+        <button id="randomBtn">Simular</button>
+        <button id="resetBtn">Repor valores</button>
       </div>
     </section>
 
-    <!-- LEITURA -->
-    <section class="panel gauge" aria-labelledby="gaugeTitle">
-      <h2 id="gaugeTitle" class="visually-hidden">Leitura da abertura</h2>
-
-      <div class="readout" id="readout" aria-live="polite">
-        <span class="rv" id="rv">+0,0%</span>
-        <span class="rc" id="rc">ABERTURA LATERAL</span>
-        <span class="rp" id="rp">sem viés definido, aguarda confirmação de direção.</span>
-      </div>
-
-      <div class="horizon">
-        <div class="scale-ends"><span class="neg">Vendedora</span><span class="pos">Compradora</span></div>
-        <div class="scale-wrap">
-          <div class="pointer" id="pointer"><span id="pointerValue">+0,0%</span><div class="tri"></div></div>
-          <div class="scale-track" id="scaleTrack">
-            <span class="zone-label on-dark" style="left:6.25%;">Forte</span>
-            <span class="zone-label" style="left:20.8%;">Moderada</span>
-            <span class="zone-label" style="left:33.3%;">Fraca</span>
-            <span class="zone-label mid" style="left:50%;">Lateral</span>
-            <span class="zone-label" style="left:66.7%;">Fraca</span>
-            <span class="zone-label" style="left:79.2%;">Moderada</span>
-            <span class="zone-label on-dark" style="left:93.75%;">Forte</span>
-            <div class="active-zone" id="activeZone"></div>
-            <div class="zero-dot" id="zeroDot"></div>
-          </div>
-        </div>
-        <div class="scale-ticks" aria-hidden="true">
-          <span style="left:12.5%">−4,5</span>
-          <span style="left:29.17%">−2,5</span>
-          <span style="left:37.5%">−1,5</span>
-          <span style="left:50%">0</span>
-          <span style="left:62.5%">+1,5</span>
-          <span style="left:70.83%">+2,5</span>
-          <span style="left:87.5%">+4,5</span>
-        </div>
-      </div>
-
-      <div class="calc-pill" id="calcPill"><span class="lbl">CÁLCULO</span></div>
-    </section>
-
-    <!-- REGISTRO -->
     <section class="panel register" aria-labelledby="regTitle">
       <div class="panel-head"><h2 id="regTitle">Registro do dia</h2></div>
 
@@ -189,7 +182,7 @@
           <button type="button" id="removeImageBtn" class="ghost-btn" style="display:none;">Remover</button>
         </div>
         <div class="fetch-status" id="imageStatus"></div>
-        <div class="fetch-note">A imagem é comprimida automaticamente. Evite muitas imagens grandes — o navegador tem limite de espaço.</div>
+        <p class="fetch-note">A imagem é comprimida automaticamente. Evite muitas imagens grandes, porque o navegador tem limite de espaço.</p>
       </div>
 
       <div class="reg-row">
@@ -198,21 +191,20 @@
       <div class="status-msg" id="statusMsg" aria-live="polite"></div>
     </section>
 
-    <!-- HISTÓRICO -->
-    <section class="panel history" aria-labelledby="histTitle">
-      <div class="panel-head">
-        <h2 id="histTitle">Histórico</h2>
-        <div class="head-actions">
-          <button id="exportHistoryBtn" class="ghost-btn">⇩ Exportar</button>
-          <button id="importHistoryBtn" class="ghost-btn">⇧ Importar</button>
-          <input type="file" id="importFileInput" accept="application/json" style="display:none;">
-        </div>
-      </div>
-      <div class="fetch-status" id="historyIoStatus"></div>
-      <div id="historyWrap"><div class="empty-state">Carregando…</div></div>
-    </section>
-
   </main>
+
+  <section class="panel history" aria-labelledby="histTitle">
+    <div class="panel-head">
+      <h2 id="histTitle">Histórico</h2>
+      <div class="head-actions">
+        <button id="exportHistoryBtn" class="ghost-btn">Exportar</button>
+        <button id="importHistoryBtn" class="ghost-btn">Importar</button>
+        <input type="file" id="importFileInput" accept="application/json" style="display:none;">
+      </div>
+    </div>
+    <div class="fetch-status" id="historyIoStatus"></div>
+    <div id="historyWrap"><div class="empty-state">Carregando…</div></div>
+  </section>
 
   <div id="imageLightbox" onclick="closeImageLightbox()" style="display:none;">
     <img id="lightboxImg" alt="Imagem do registro ampliada">
@@ -220,7 +212,6 @@
 
 </div>
 
-<!-- Lógica do app (dados salvos localmente no navegador via localStorage) -->
 <script src="app.js"></script>
 </body>
 </html>
