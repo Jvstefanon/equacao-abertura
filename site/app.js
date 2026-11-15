@@ -187,6 +187,7 @@ function compute(){
     : `Abertura ${c.sign.toLowerCase()}${c.intensity ? ' ' + c.intensity.toLowerCase() : ''}`;
   $('rc').className = 'rc ' + toneColorClass(c.tone);
   $('rp').textContent = c.phrase;
+  $('rp').className = 'rp ' + toneColorClass(c.tone);
 
   const classification = (c.intensity ? c.intensity + ' ' : '') + c.sign;
   return {total, classification};

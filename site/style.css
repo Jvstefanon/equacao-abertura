@@ -82,7 +82,16 @@ input[type=date]{
   font-variant-numeric:tabular-nums;transition:color .3s ease;
 }
 .rc{display:block;margin-top:16px;font-size:20px;font-weight:600;letter-spacing:-0.01em;}
-.rp{display:block;margin-top:4px;color:var(--ink-2);font-size:15px;}
+.rp{
+  --tone:var(--neutral);
+  display:block;margin-top:14px;padding:12px 16px;
+  border-left:4px solid var(--tone);border-radius:0 10px 10px 0;
+  background:color-mix(in srgb, var(--tone) 12%, transparent);
+  color:var(--tone);font-size:17px;font-weight:600;line-height:1.4;
+}
+.rp.down-color{--tone:var(--sell);}
+.rp.up-color{--tone:var(--buy);}
+.rp.flat-color{--tone:var(--neutral);}
 .up-color{color:var(--buy);}
 .down-color{color:var(--sell);}
 .flat-color{color:var(--neutral);}

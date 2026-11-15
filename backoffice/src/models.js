@@ -5,7 +5,14 @@ if (!databaseUrl) {
   throw new Error('Defina DATABASE_URL no arquivo .env');
 }
 
-export const sequelize = new Sequelize(databaseUrl, { logging: false });
+// Banco local (localhost) conecta sem SSL; bancos na nuvem (Neon, Render etc.) exigem SSL.
+// O Sequelize ignora o "?sslmode=require" da URL, por isso o SSL é ligado aqui.
+const bancoLocal = /@(localhost|127\.0\.0\.1)(:|\/)/.test(databaseUrl);
+
+export const sequelize = new Sequelize(databaseUrl, {
+  logging: false,
+  dialectOptions: bancoLocal ? {} : { ssl: { require: true, rejectUnauthorized: true } },
+});
 
 // Usuários do backoffice (quem acessa o painel)
 export const User = sequelize.define(
