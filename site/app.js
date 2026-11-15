@@ -463,7 +463,9 @@ async function loadHistory(){
       const imgCell = r.imagem
         ? `<img src="${r.imagem}" alt="Print do gráfico de ${fmtBR(r.data)}" onclick="openImageLightbox('${r.data}')" style="width:36px;height:36px;object-fit:cover;border-radius:6px;cursor:zoom-in;border:1px solid var(--rule);">`
         : '<span class="empty-state" style="padding:0;">—</span>';
-      const excluir = canDelete() ? `<button onclick="deleteRecord('${r.data}')">excluir</button>` : '';
+      const excluir = canDelete()
+        ? `<button class="danger" onclick="deleteRecord('${r.data}')" aria-label="Excluir o registro de ${fmtBR(r.data)}">Excluir</button>`
+        : '';
       html += `<tr>
         <td class="date">${fmtBR(r.data)}</td>
         <td>${r.temNoticia ? 'ADRs' : 'Externo'}</td>
@@ -473,9 +475,11 @@ async function loadHistory(){
         <td>${escapeHtml(r.criadoPor ? r.criadoPor.name : '—')}</td>
         <td title="${escapeHtml(desc)}">${escapeHtml(descShort) || '<span class="empty-state" style="padding:0;">—</span>'}</td>
         <td>${imgCell}</td>
-        <td class="row-actions">
-          <button onclick="loadIntoForm('${r.data}')">abrir</button>
-          ${excluir}
+        <td class="actions-cell">
+          <div class="row-actions">
+            <button onclick="loadIntoForm('${r.data}')">Abrir</button>
+            ${excluir}
+          </div>
         </td>
       </tr>`;
     }

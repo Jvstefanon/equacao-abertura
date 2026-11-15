@@ -284,12 +284,21 @@ tbody tr:hover{background:#FAF9F5;}
 td.date,td.pct{font-variant-numeric:tabular-nums;white-space:nowrap;}
 td[title]{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 td img{height:36px;width:36px;object-fit:cover;border-radius:8px;border:1px solid var(--rule);cursor:zoom-in;}
-.row-actions{display:flex;gap:14px;justify-content:flex-end;}
-.row-actions button{
-  background:none;border:none;color:var(--ink-2);cursor:pointer;
-  font:500 13px var(--sans);padding:0;
+/* Coluna de ações presa à direita: continua visível com a tabela rolada */
+th:last-child,td.actions-cell{
+  position:sticky;right:0;background:var(--surface);
+  box-shadow:-8px 0 8px -8px rgba(20,23,28,.18);
 }
-.row-actions button:hover{color:var(--ink);text-decoration:underline;}
+tbody tr:hover td.actions-cell{background:#FAF9F5;}
+.row-actions{display:flex;gap:8px;justify-content:flex-end;}
+.row-actions button{
+  background:transparent;border:1px solid var(--rule);border-radius:8px;
+  color:var(--ink-2);cursor:pointer;font:600 13px var(--sans);
+  padding:6px 12px;white-space:nowrap;
+}
+.row-actions button:hover{color:var(--ink);border-color:var(--ink-3);}
+.row-actions button.danger{color:var(--sell);border-color:color-mix(in srgb, var(--sell) 40%, transparent);}
+.row-actions button.danger:hover{background:var(--sell);border-color:var(--sell);color:#fff;}
 .empty-state{color:var(--ink-3);font-size:14px;padding:12px 0;}
 
 /* ---------- Ampliação de imagem ---------- */
